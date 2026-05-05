@@ -1,20 +1,27 @@
 <script>
 	import { onMount } from 'svelte';
 	import { validateSencode } from '@sudoku/sencode';
-	import game from '@sudoku/game';
 	import { modal } from '@sudoku/stores/modal';
-	import { gameWon } from '@sudoku/stores/game';
+
 	import Board from './components/Board/index.svelte';
 	import Controls from './components/Controls/index.svelte';
 	import Header from './components/Header/index.svelte';
 	import Modal from './components/Modal/index.svelte';
 
-	gameWon.subscribe(won => {
-		if (won) {
-			game.pause();
-			modal.show('gameover');
-		}
-	});
+	// ✅ 用你自己的 store（核心！！）
+	import { createGameStore } from './stores/gameStore.js';
+
+	// ✅ 初始化一个空盘面（你也可以换成题目）
+	function createEmptyGrid() {
+		return Array(9)
+			.fill(0)
+			.map(() => Array(9).fill(0));
+	}
+
+	// ✅ 全局 game（供子组件使用）
+	export const game = createGameStore(createEmptyGrid());
+
+	// ❌ 删除旧的 gameWon / game.pause / game.resume
 
 	onMount(() => {
 		let hash = location.hash;
@@ -28,22 +35,25 @@
 			sencode = hash;
 		}
 
-		modal.show('welcome', { onHide: game.resume, sencode });
+		// ✅ 不再依赖旧 game.resume
+		modal.show('welcome', { onHide: () => {}, sencode });
 	});
 </script>
 
-<!-- Timer, Menu, etc. -->
+<!-- Header -->
 <header>
 	<Header />
 </header>
 
-<!-- Sudoku Field -->
+<!-- Sudoku Board -->
 <section>
+	<!-- ✅ Board 会从 App 导入 game -->
 	<Board />
 </section>
 
-<!-- Keyboard -->
+<!-- Controls -->
 <footer>
+	<!-- ✅ Controls 也会用你的 game -->
 	<Controls />
 </footer>
 
