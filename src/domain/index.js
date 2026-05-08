@@ -1,28 +1,19 @@
-import { Sudoku } from './Sudoku.js';
-import { Game } from './Game.js';
-import { generateSudoku, generateCustomSudoku } from './generator.js';
-import { encodeSudoku, decodeSencode, validateSencode } from './sencode.js';
+// src/domain/index.js
+import { createSudoku as _createSudoku, createSudokuFromJSON as _createSudokuFromJSON } from './Sudoku';
+import { createGame as _createGame, createGameFromJSON as _createGameFromJSON } from './Game';
 
-// ─── Sudoku 工厂 ─────────────────────────
 export function createSudoku(input) {
-    return new Sudoku(input);
+  return _createSudoku(input);
 }
 
 export function createSudokuFromJSON(json) {
-    return new Sudoku(json.grid, json.given ?? null);
+  return _createSudokuFromJSON(json);
 }
 
-// ─── Game 工厂 ───────────────────────────
-export function createGame({ sudoku, hintsTotal = 0 }) {
-    return new Game(sudoku, { hintsTotal });
+export function createGame({ sudoku }) {
+  return _createGame({ sudoku });
 }
 
 export function createGameFromJSON(json) {
-    return Game.fromJSON(json);
+  return _createGameFromJSON(json);
 }
-
-// ─── 生成器 ───────────────────────────────
-export { generateSudoku, generateCustomSudoku };
-
-// ─── 编码/解码 ───────────────────────────
-export { encodeSudoku, decodeSencode, validateSencode };
