@@ -1,55 +1,56 @@
 <script>
-	import game from '@sudoku/game';
-	import { validateSencode } from '@sudoku/sencode';
-	import { modal } from '@sudoku/stores/modal';
+	import { getGameContext } from '../../domain/context.js';
+	import { modal, modalData } from '../../domain/stores/modal.js';
+	import { difficulty } from '../../domain/stores/difficulty.js';
+	import { validateSencode, decodeSencode, generateSudoku } from '../../domain/index.js';
+	import { DIFFICULTIES, DIFFICULTY_CUSTOM, DROPDOWN_DURATION } from '../../domain/constants.js';
 	import { slide, fade } from 'svelte/transition';
-	import { DIFFICULTIES, DROPDOWN_DURATION, DIFFICULTY_CUSTOM } from '@sudoku/constants';
-	import { difficulty } from '@sudoku/stores/difficulty';
+
+	const gameStore = getGameContext();
 
 	let dropdownVisible = false;
 
 	function handleDifficulty(difficultyValue) {
 		dropdownVisible = false;
-		game.pause();
-
 		modal.show('confirm', {
 			title: 'New Game',
 			text: 'Start new game with difficulty "' + DIFFICULTIES[difficultyValue] + '"?',
 			button: 'Continue',
-			onHide: game.resume,
+			onHide: () => {},
 			callback: () => {
-				game.startNew(difficultyValue);
+				// 使用领域对象开始新游戏（GameStore 是唯一的真相源）
+				const grid = generateSudoku(difficultyValue);
+				gameStore.load(grid);
+				difficulty.set(difficultyValue);
 			},
 		});
 	}
 
 	function handleCreateOwn() {
 		dropdownVisible = false;
-		game.pause();
-
 		modal.show('confirm', {
 			title: 'Create Own',
 			text: 'Switch to the creator mode to create your own Sudoku puzzle?',
 			button: 'Continue',
-			onHide: game.resume,
+			onHide: () => {},
 			callback: () => {
-				//game.startCreatorMode();
+				// TODO: 实现自定义创建模式
 			},
 		});
 	}
 
 	function handleEnterCode() {
 		dropdownVisible = false;
-		game.pause();
-
 		modal.show('prompt', {
 			title: 'Enter Code',
 			text: 'Please enter the code of the Sudoku puzzle you want to play:',
 			fontMono: true,
 			button: 'Start',
-			onHide: game.resume,
+			onHide: () => {},
 			callback: (value) => {
-				game.startCustom(value);
+				// 使用领域对象从 sencode 加载游戏
+				const grid = decodeSencode(value);
+				gameStore.load(grid);
 			},
 			validate: validateSencode
 		});
@@ -57,12 +58,10 @@
 
 	function showDropdown() {
 		dropdownVisible = true;
-		game.pause();
 	}
 
 	function hideDropdown() {
 		dropdownVisible = false;
-		setTimeout(game.resume, DROPDOWN_DURATION);
 	}
 </script>
 
