@@ -1,177 +1,194 @@
-// src/domain/generator.js
+/**
+ * 数独生成器
+ * 用于生成不同难度的数独题目
+ */
 
 /**
- * SudokuGenerator
- * 提供生成完整解和挖空题目的方法
+ * 生成完整的数独解
+ * @returns {number[][]} 9x9 二维数组，表示完整的数独解
  */
-export class SudokuGenerator {
-    constructor() {
-        this.SIZE = 9;
-        this.BOX = 3;
-    }
+function generateSolution() {
+    const grid = Array(9).fill(null).map(() => Array(9).fill(0));
 
-    /* ─── 公共接口 ─── */
-
-    /**
-     * 生成完整解
-     * @returns {number[][]} 9x9 完整数独
-     */
-    generateSolution() {
-        const grid = Array.from({ length: this.SIZE }, () => Array(this.SIZE).fill(0));
-        this._fillGrid(grid);
-        return grid;
-    }
-
-    /**
-     * 根据难度生成题目
-     * @param {'easy'|'medium'|'hard'|'extreme'} difficulty
-     * @returns {number[][]}
-     */
-    generatePuzzle(difficulty = 'medium') {
-        const holesMap = { easy: 35, medium: 45, hard: 52, extreme: 58 };
-        const holes = holesMap[difficulty] || 45;
-
-        const solution = this.generateSolution();
-        return this._createPuzzle(solution, holes);
-    }
-
-    /**
-     * 自定义挖空题目
-     * @param {number} holes
-     * @returns {number[][]}
-     */
-    generateCustomPuzzle(holes = 40) {
-        const solution = this.generateSolution();
-        const count = Math.min(Math.max(holes, 20), 70);
-        return this._createPuzzle(solution, count);
-    }
-
-    /* ─── 私有方法 ─── */
-
-    _fillGrid(grid) {
-        const nums = [1,2,3,4,5,6,7,8,9];
-
-        const shuffle = arr => {
-            const a = [...arr];
-            for (let i = a.length-1; i>0; i--) {
-                const j = Math.floor(Math.random() * (i+1));
-                [a[i], a[j]] = [a[j], a[i]];
-            }
-            return a;
-        };
-
-        const solve = () => {
-            for (let r=0; r<this.SIZE; r++) {
-                for (let c=0; c<this.SIZE; c++) {
-                    if (grid[r][c] === 0) {
-                        for (const n of shuffle(nums)) {
-                            if (this._isSafe(grid, r, c, n)) {
-                                grid[r][c] = n;
-                                if (solve()) return true;
-                                grid[r][c] = 0;
-                            }
-                        }
-                        return false;
-                    }
-                }
-            }
-            return true;
-        };
-
-        solve();
-    }
-
-    _createPuzzle(solution, holes) {
-        const puzzle = solution.map(row => [...row]);
-        const positions = [];
-
-        for (let r=0; r<this.SIZE; r++) {
-            for (let c=0; c<this.SIZE; c++) positions.push([r,c]);
+    function isValid(grid, row, col, num) {
+        // 检查行
+        for (let c = 0; c < 9; c++) {
+            if (grid[row][c] === num) return false;
         }
-
-        const shuffle = arr => {
-            const a = [...arr];
-            for (let i = a.length-1; i>0; i--) {
-                const j = Math.floor(Math.random() * (i+1));
-                [a[i], a[j]] = [a[j], a[i]];
-            }
-            return a;
-        };
-
-        const shuffled = shuffle(positions);
-        let removed = 0;
-
-        for (const [r, c] of shuffled) {
-            if (removed >= holes) break;
-            const backup = puzzle[r][c];
-            puzzle[r][c] = 0;
-
-            if (this._countSolutions(puzzle, 2) === 1) {
-                removed++;
-            } else {
-                puzzle[r][c] = backup;
+        // 检查列
+        for (let r = 0; r < 9; r++) {
+            if (grid[r][col] === num) return false;
+        }
+        // 检查 3x3 宫
+        const boxRow = Math.floor(row / 3) * 3;
+        const boxCol = Math.floor(col / 3) * 3;
+        for (let r = boxRow; r < boxRow + 3; r++) {
+            for (let c = boxCol; c < boxCol + 3; c++) {
+                if (grid[r][c] === num) return false;
             }
         }
-
-        return puzzle;
-    }
-
-    _isSafe(grid, row, col, val) {
-        // 行列宫检查
-        for (let i=0; i<this.SIZE; i++) {
-            if (grid[row][i] === val) return false;
-            if (grid[i][col] === val) return false;
-        }
-
-        const br = Math.floor(row/3)*3;
-        const bc = Math.floor(col/3)*3;
-        for (let r=br; r<br+3; r++) {
-            for (let c=bc; c<bc+3; c++) {
-                if (grid[r][c] === val) return false;
-            }
-        }
-
         return true;
     }
 
-    _countSolutions(grid, maxCount = 2) {
-        let count = 0;
-
-        const copyGrid = g => g.map(row => [...row]);
-
-        const solve = (g) => {
-            if (count >= maxCount) return;
-
-            for (let r=0; r<this.SIZE; r++) {
-                for (let c=0; c<this.SIZE; c++) {
-                    if (g[r][c] === 0) {
-                        for (let n=1; n<=9; n++) {
-                            if (this._isSafe(g, r, c, n)) {
-                                g[r][c] = n;
-                                solve(g);
-                                g[r][c] = 0;
+    function solve(grid) {
+        for (let row = 0; row < 9; row++) {
+            for (let col = 0; col < 9; col++) {
+                if (grid[row][col] === 0) {
+                    // 打乱 1-9 的顺序尝试
+                    const nums = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+                    for (const num of nums) {
+                        if (isValid(grid, row, col, num)) {
+                            grid[row][col] = num;
+                            if (solve(grid)) {
+                                return true;
                             }
+                            grid[row][col] = 0;
                         }
-                        return;
                     }
+                    return false;
                 }
             }
-            count++;
-        };
-
-        solve(copyGrid(grid));
-        return count;
+        }
+        return true;
     }
+
+    solve(grid);
+    return grid;
 }
 
-/* ─── 工厂函数 ─── */
+/**
+ * 打乱数组（Fisher-Yates 洗牌算法）
+ */
+function shuffle(array) {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
 
-const generator = new SudokuGenerator();
+/**
+ * 复制二维数组
+ */
+function copyGrid(grid) {
+    return grid.map(row => [...row]);
+}
 
+/**
+ * 计算数独解的数量（用于验证唯一解）
+ */
+function countSolutions(grid, maxCount = 2) {
+    let count = 0;
+
+    function solve(g) {
+        if (count >= maxCount) return;
+
+        for (let row = 0; row < 9; row++) {
+            for (let col = 0; col < 9; col++) {
+                if (g[row][col] === 0) {
+                    for (let num = 1; num <= 9; num++) {
+                        if (isValidPlacement(g, row, col, num)) {
+                            g[row][col] = num;
+                            solve(g);
+                            g[row][col] = 0;
+                        }
+                    }
+                    return;
+                }
+            }
+        }
+        count++;
+    }
+
+    function isValidPlacement(g, row, col, num) {
+        for (let c = 0; c < 9; c++) {
+            if (g[row][c] === num) return false;
+        }
+        for (let r = 0; r < 9; r++) {
+            if (g[r][col] === num) return false;
+        }
+        const boxRow = Math.floor(row / 3) * 3;
+        const boxCol = Math.floor(col / 3) * 3;
+        for (let r = boxRow; r < boxRow + 3; r++) {
+            for (let c = boxCol; c < boxCol + 3; c++) {
+                if (g[r][c] === num) return false;
+            }
+        }
+        return true;
+    }
+
+    solve(copyGrid(grid));
+    return count;
+}
+
+/**
+ * 根据难度挖掉指定数量的格子
+ */
+function createPuzzle(solution, holes) {
+    const puzzle = copyGrid(solution);
+    const positions = [];
+
+    // 收集所有非零位置
+    for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+            positions.push([r, c]);
+        }
+    }
+
+    // 打乱位置
+    const shuffledPositions = shuffle(positions);
+
+    // 挖掉指定数量的格子
+    let removed = 0;
+    for (const [row, col] of shuffledPositions) {
+        if (removed >= holes) break;
+
+        const backup = puzzle[row][col];
+        puzzle[row][col] = 0;
+
+        // 简单验证：确保挖掉后仍有解
+        if (countSolutions(puzzle, 2) === 1) {
+            removed++;
+        } else {
+            // 如果导致多解，恢复格子
+            puzzle[row][col] = backup;
+        }
+    }
+
+    return puzzle;
+}
+
+/**
+ * 根据难度生成数独题目
+ * @param {string} difficulty - 难度级别：'easy', 'medium', 'hard', 'extreme'
+ * @returns {number[][]} 9x9 二维数组，表示数独题目
+ */
 export function generateSudoku(difficulty = 'medium') {
-    return generator.generatePuzzle(difficulty);
+    const holesMap = {
+        easy: 35,
+        medium: 45,
+        hard: 52,
+        extreme: 58
+    };
+
+    const holes = holesMap[difficulty] || 45;
+
+    // 生成完整解
+    const solution = generateSolution();
+
+    // 根据难度挖空
+    const puzzle = createPuzzle(solution, holes);
+
+    return puzzle;
 }
 
-export function generateCustomSudoku(holes = 40) {
-    return generator.generateCustomPuzzle(holes);
+/**
+ * 创建自定义难度的数独
+ * @param {number} numHoles - 挖空数量
+ * @returns {number[][]} 9x9 二维数组
+ */
+export function generateCustomSudoku(numHoles = 40) {
+    const solution = generateSolution();
+    return createPuzzle(solution, Math.min(Math.max(numHoles, 20), 70));
 }
