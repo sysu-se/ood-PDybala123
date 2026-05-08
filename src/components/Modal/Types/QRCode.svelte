@@ -1,5 +1,5 @@
 <script>
-	import { modal } from '@sudoku/stores/modal';
+	import { modal } from '../../../domain/stores/modal.js';
 
 	export let data = {};
 
