@@ -1,15 +1,17 @@
 <script>
-	import { modal } from '@sudoku/stores/modal';
-	import { pauseGame, resumeGame } from '@sudoku/game';
+	import { getGameContext } from '../../domain/context.js';
+	import { modal } from '../../domain/stores/modal.js';
+
+	const gameStore = getGameContext();
 
 	function handleShareButton() {
-		pauseGame();
-		modal.show('share', { onHide: resumeGame });
+		gameStore.pause();
+		modal.show('share', { onHide: () => gameStore.resume() });
 	}
 
 	function handleSettingsButton() {
-		pauseGame();
-		modal.show('settings', { onHide: resumeGame });
+		gameStore.pause();
+		modal.show('settings', { onHide: () => gameStore.resume() });
 	}
 </script>
 
