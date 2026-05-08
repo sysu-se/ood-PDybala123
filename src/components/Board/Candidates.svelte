@@ -1,5 +1,5 @@
 <script>
-	import { CANDIDATE_COORDS } from '@sudoku/constants';
+	import { CANDIDATE_COORDS } from '../../domain/constants.js';
 
 	export let candidates = [];
 </script>
