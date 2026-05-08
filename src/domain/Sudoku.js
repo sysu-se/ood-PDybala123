@@ -1,79 +1,86 @@
-/**
- * Sudoku 核心领域对象
- * 支持 clone、Hint、NextMove、冲突检测、深拷贝、序列化
- */
 export class Sudoku {
     /**
-     * @param {(number|null)[][]} grid 9×9 数独数组，0 或 null 表示空格
-     * @param {boolean[][]} [given] 初始给定格（不可修改），若未传入自动生成
+     * @param {(number|null)[][]} grid  9×9 二维数组，0 或 null 表示空格
+     * @param {boolean[][]}       [locked]  标记初始给定格（不可修改）
      */
-    constructor(grid, given = null) {
-        // 深拷贝并统一空格为 null
-        this._cells = grid.map(row => row.map(cell => (cell === 0 || cell === null) ? null : cell));
-
-        // 初始化给定格
-        this._given = given
-            ? given.map(row => [...row])
+    constructor(grid, locked = null) {
+        // 将 grid 中的 0 转换为 null，统一表示空格
+        this._grid = JSON.parse(JSON.stringify(grid)).map(row =>
+            row.map(cell => (cell === 0 || cell === null) ? null : cell)
+        );
+        // 若未传入 locked，则把一开始所有非零格视为给定格
+        this._locked = locked
+            ? JSON.parse(JSON.stringify(locked))
             : grid.map(row => row.map(cell => cell !== 0 && cell !== null));
     }
 
     /* ─── 基本读取 ─── */
 
+    /**
+     * 获取格子 (row, col) 的值（性能优化，避免完整深拷贝）
+     * @returns {number|null}
+     */
     getCell(row, col) {
-        return this._cells[row]?.[col] ?? null;
+        return this._grid[row]?.[col] ?? null;
     }
 
     getGrid() {
-        // 返回深拷贝，避免外部修改
-        return this._cells.map(row => [...row]);
+        return JSON.parse(JSON.stringify(this._grid));
     }
 
-    setGrid(newGrid) {
+    /**
+     * 批量设置盘面（用于状态恢复）
+     * @param {(number|null)[][]} grid  9×9 二维数组
+     */
+    setGrid(grid) {
         for (let r = 0; r < 9; r++) {
             for (let c = 0; c < 9; c++) {
-                this._cells[r][c] = newGrid[r][c];
+                this._grid[r][c] = grid[r][c];
             }
         }
     }
 
-    getGiven() {
-        return this._given.map(row => [...row]);
+    getLocked() {
+        return JSON.parse(JSON.stringify(this._locked));
     }
 
-    isGiven(row, col) {
-        return this._given[row][col];
+    isLocked(row, col) {
+        return this._locked[row][col];
     }
 
-    /* ─── 填写 / 清除 ─── */
-
-    /**
-     * 填入或清除格子值
-     * @param {{row: number, col: number, value: number|null}} move
-     * @returns {boolean} 是否成功
-     */
+    /** 填入/清除格子值。返回是否成功，拒绝修改 locked 格 */
     guess(move) {
         const { row, col, value } = move;
 
-        if (!Number.isInteger(row) || row < 0 || row > 8) return false;
-        if (!Number.isInteger(col) || col < 0 || col > 8) return false;
-        if (value !== null && value !== 0 && (!Number.isInteger(value) || value < 1 || value > 9)) return false;
-        if (this.isGiven(row, col)) return false;
+        // ─── 输入验证 ───
+        if (!Number.isInteger(row) || row < 0 || row > 8 ||
+            !Number.isInteger(col) || col < 0 || col > 8) {
+            return false;
+        }
+        // value 可以是 1-9，或 null/0 表示清除
+        if (value !== null && value !== 0 &&
+            (!Number.isInteger(value) || value < 1 || value > 9)) {
+            return false;
+        }
+        if (this._locked[row][col]) return false;   // 给定格不可修改
 
-        this._cells[row][col] = (value === 0 ? null : value);
+        this._grid[row][col] = (value === 0) ? null : value;
         return true;
     }
 
-    /* ─── 冲突检测 ─── */
 
+    /** 判断某个格子的值是否与同行/列/宫冲突（0/null 视为空，不冲突） */
     isConflict(row, col) {
-        const val = this._cells[row][col];
+        const val = this._grid[row][col];
         if (!val) return false;
-
-        return this._checkRowConflict(row, col, val) ||
-               this._checkColConflict(row, col, val) ||
-               this._checkBoxConflict(row, col, val);
+        return (
+            this._rowConflict(row, col, val) ||
+            this._colConflict(row, col, val) ||
+            this._boxConflict(row, col, val)
+        );
     }
 
+    /** 返回所有冲突格坐标 { row, col }[] */
     getConflicts() {
         const conflicts = [];
         for (let r = 0; r < 9; r++) {
@@ -84,119 +91,112 @@ export class Sudoku {
         return conflicts;
     }
 
+    /** 判断当前盘面是否已完成且合法 */
     isSolved() {
         for (let r = 0; r < 9; r++) {
             for (let c = 0; c < 9; c++) {
-                const val = this._cells[r][c];
-                if (!val || this.isConflict(r, c)) return false;
+                const v = this._grid[r][c];
+                if (!v) return false;               // 有空格
+                if (this.isConflict(r, c)) return false; // 有冲突
             }
         }
         return true;
     }
 
-    /* ─── 克隆 ─── */
+    /* ─── clone ─── */
 
     clone() {
-        return new Sudoku(this.getGrid(), this.getGiven());
+        return new Sudoku(this.getGrid(), this.getLocked());
     }
 
-    /* ─── 序列化 / 外表化 ─── */
+    /* ─── 序列化 ─── */
+
+    toString() {
+        return this._grid
+            .map(row => row.map(cell => (cell === null || cell === 0 ? '.' : cell)).join(' '))
+            .join('\n');
+    }
 
     toJSON() {
         return {
             grid: this.getGrid(),
-            given: this.getGiven()
+            locked: this.getLocked()
         };
     }
 
-    toString() {
-        return this._cells
-            .map(row => row.map(cell => (cell === null ? '.' : cell)).join(' '))
-            .join('\n');
-    }
-
-    /* ─── Hint 功能 ─── */
+    /* ─── 提示功能 ─── */
 
     /**
-     * 获取格子的候选数集合
-     * @param {number} row
-     * @param {number} col
-     * @returns {number[]} 候选数数组
+     * 计算某格子 (row, col) 的候选数集合 { 1..9 }
+     * @returns {number[]} 候选数数组，若格子已有值则返回空数组
      */
     getCandidates(row, col) {
-        if (!this._cells[row] || col < 0 || col > 8) return [];
-        const val = this._cells[row][col];
-        if (val !== null) return [];
+        // 防御性检查
+        if (!this._grid || !this._grid[row] || this._grid[row][col] === undefined) {
+            return [];
+        }
+        
+        const val = this._grid[row][col];
+        if (val !== null && val !== 0) return []; // 已填格子无候选数
 
         const blocked = new Set();
-
-        // 行
+        // 同行
         for (let c = 0; c < 9; c++) {
-            if (this._cells[row][c]) blocked.add(this._cells[row][c]);
+            if (this._grid[row][c]) blocked.add(this._grid[row][c]);
         }
-        // 列
+        // 同列
         for (let r = 0; r < 9; r++) {
-            if (this._cells[r][col]) blocked.add(this._cells[r][col]);
+            if (this._grid[r][col]) blocked.add(this._grid[r][col]);
         }
-        // 宫
+        // 同宫
         const br = Math.floor(row / 3) * 3;
         const bc = Math.floor(col / 3) * 3;
         for (let r = br; r < br + 3; r++) {
             for (let c = bc; c < bc + 3; c++) {
-                if (this._cells[r][c]) blocked.add(this._cells[r][c]);
+                if (this._grid[r][c]) blocked.add(this._grid[r][c]);
             }
         }
 
-        return [1,2,3,4,5,6,7,8,9].filter(v => !blocked.has(v));
+        return [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(v => !blocked.has(v));
     }
 
     /**
-     * 获取下一步唯一候选数
-     * @returns {{row: number, col: number, value: number}|null}
+     * 找到当前盘面下一步可推断的"推定数"（唯一候选数）。
+     * @returns {{ row, col, value } | null} 若无推定数则返回 null
      */
     getNextMove() {
         for (let r = 0; r < 9; r++) {
             for (let c = 0; c < 9; c++) {
-                if (this._cells[r][c] !== null || this.isGiven(r,c)) continue;
+                const val = this._grid[r][c];
+                if (val !== null && val !== 0) continue;   // 跳过已填格
+                if (this._locked[r][c]) continue;           // 只提示用户可填的格
                 const candidates = this.getCandidates(r, c);
                 if (candidates.length === 1) {
                     return { row: r, col: c, value: candidates[0] };
                 }
             }
         }
-        return null;
+        return null; // 无法推断下一步
     }
 
-    /**
-     * 统一 Hint 接口
-     * @param {'candidates'|'next'} type
-     * @param {number} [row]
-     * @param {number} [col]
-     * @returns {any} Hint 数据
-     */
-    getHint(type, row, col) {
-        if (type === 'candidates') return { row, col, candidates: this.getCandidates(row, col) };
-        if (type === 'next') return this.getNextMove();
-        return null;
+    /* ─── 私有辅助 ─── */
+
+    _rowConflict(row, col, val) {
+        return this._grid[row].some((v, c) => c !== col && v === val);
     }
 
-    /* ─── 私有方法 ─── */
-
-    _checkRowConflict(row, col, val) {
-        return this._cells[row].some((v, c) => c !== col && v === val);
+    _colConflict(row, col, val) {
+        return this._grid.some((r, i) => i !== row && r[col] === val);
     }
 
-    _checkColConflict(row, col, val) {
-        return this._cells.some((r, i) => i !== row && r[col] === val);
-    }
-
-    _checkBoxConflict(row, col, val) {
+    /** 检查同宫（3×3 子宫）内是否有重复值 */
+    _boxConflict(row, col, val) {
         const br = Math.floor(row / 3) * 3;
         const bc = Math.floor(col / 3) * 3;
         for (let r = br; r < br + 3; r++) {
             for (let c = bc; c < bc + 3; c++) {
-                if (r === row && c === col) continue;
-                if (this._cells[r][c] === val) return true;
+                if (r === row && c === col) continue; // 跳过自己
+                if (this._grid[r][c] === val) return true;
             }
         }
         return false;
