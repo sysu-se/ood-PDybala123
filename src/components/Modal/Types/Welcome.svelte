@@ -1,8 +1,10 @@
 <script>
-	import { difficulty as difficultyStore } from '@sudoku/stores/difficulty';
-	import { startNew, startCustom } from '@sudoku/game';
-	import { validateSencode } from '@sudoku/sencode';
-	import { DIFFICULTIES } from '@sudoku/constants';
+	import { getGameContext } from '../../../domain/context.js';
+	import { difficulty as difficultyStore } from '../../../domain/stores/difficulty.js';
+	import { validateSencode, decodeSencode, generateSudoku } from '../../../domain/index.js';
+	import { DIFFICULTIES, DIFFICULTY_CUSTOM } from '../../../domain/constants.js';
+
+	const gameStore = getGameContext();
 
 	export let data = {};
 	export let hideModal;
@@ -15,9 +17,14 @@
 
 	function handleStart() {
 		if (validateSencode(sencode)) {
-			startCustom(sencode);
+			// 从 sencode 加载
+			const grid = decodeSencode(sencode);
+			gameStore.load(grid);
 		} else {
-			startNew(difficulty);
+			// 生成新游戏（使用新系统生成器）
+			const grid = generateSudoku(difficulty);
+			gameStore.load(grid);
+			difficultyStore.set(difficulty);
 		}
 
 		hideModal();
