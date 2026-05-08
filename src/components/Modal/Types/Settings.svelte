@@ -1,8 +1,8 @@
 <script>
 	import { slide } from 'svelte/transition';
 	import Switch from '../../Utils/Switch.svelte';
-	import { settings as settingsStore } from '@sudoku/stores/settings';
-	import { MAX_HINTS } from '@sudoku/constants';
+	import { settings as settingsStore } from '../../../domain/stores/settings.js';
+	import { MAX_HINTS } from '../../../domain/constants.js';
 
 	export let data = {};
 	export let hideModal;
@@ -30,7 +30,7 @@
 - Highlight cells in same Row/Column/Box
 - Highlight matching digits
 - Highlight conflicting digits
--
+
 
 -->
 
