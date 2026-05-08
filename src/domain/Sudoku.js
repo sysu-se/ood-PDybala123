@@ -1,5 +1,5 @@
 /**
- * Sudoku 核心领域对象（重构版）
+ * Sudoku 核心领域对象
  * 支持 clone、Hint、NextMove、冲突检测、深拷贝、序列化
  */
 export class Sudoku {
